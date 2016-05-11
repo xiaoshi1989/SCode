@@ -52,7 +52,8 @@ public class ExcelException extends RuntimeException {
     public static enum ExcelExceptionEnum{
         SECCUSS(1,"导出成功"),
         FAIL(0,"导出失败"),
-        PARAMETER_MISSING(100,"参数异常");
+        PARAMETER_MISSING(100,"参数异常"),
+        SHEET_EMPTY(101,"参数sheet不能为空");
         private int code;
         private String message;
         private ExcelExceptionEnum(int code,String message){

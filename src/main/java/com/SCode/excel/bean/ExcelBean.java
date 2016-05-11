@@ -1,8 +1,6 @@
 package com.SCode.excel.bean;
 
 import java.util.List;
-
-import org.apache.poi.ss.usermodel.Sheet;
 /**
  * 
  * excel bean
@@ -15,6 +13,14 @@ public class ExcelBean <T> {
     public static final String EXCEL_VERSION_2003 = "2003";
     
     public static final String EXCEL_VERSION_2007 = "2007";
+    /**
+     * excel 最大行数
+     */
+    public static final int   EXCEL_MAX_CLOUMN_2007 = 1048576;
+    /**
+     * 下拉列表最大值
+     */
+    public static final int   EXCEL_MAX_ROWENUM = 10;
     
     /**
      * 文件名称
@@ -23,7 +29,7 @@ public class ExcelBean <T> {
     /**
      * 工作表
      */
-    private List<Sheet> sheets;
+    private List<SheetBean<T>> sheets;
     /**
      * 文件保存目录
      */
@@ -38,7 +44,7 @@ public class ExcelBean <T> {
         return fileName;
     }
     
-    public List<Sheet> getSheets() {
+    public List<SheetBean<T>> getSheets() {
         return sheets;
     }
     
@@ -54,7 +60,7 @@ public class ExcelBean <T> {
         this.fileName = fileName;
     }
     
-    public void setSheets(List<Sheet> sheets) {
+    public void setSheets(List<SheetBean<T>> sheets) {
         this.sheets = sheets;
     }
     
@@ -66,4 +72,5 @@ public class ExcelBean <T> {
         this.version = version;
     }
     
+   
 }

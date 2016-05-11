@@ -45,6 +45,8 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import com.SCode.excel.bean.ExcelBean;
+import com.SCode.excel.bean.HeaderBean;
+import com.SCode.excel.bean.SheetBean;
 import com.SCode.excel.exception.ExcelException;
 import com.SCode.excel.util.StringUtil;
 /**
@@ -66,16 +68,173 @@ public class ExcelUtils<T>{
 	
 	
 	
-	public  Workbook creatWorkbook(ExcelBean<T> excel) throws Exception{
+	public  Workbook creatWorkbook(ExcelBean<T> excel) throws ExcelException{
 	    Workbook wb = null;
 	    if(excel==null){
 	        throw new ExcelException(ExcelException.ExcelExceptionEnum.PARAMETER_MISSING);
 	    }
-	    
+	    if(StringUtil.isEmpty(excel.getFileName())){
+	        excel.setFileName("newFile");
+	    }
+	    if(StringUtil.isEmpty(excel.getVersion())){
+	        excel.setVersion(ExcelBean.EXCEL_VERSION_2007);
+	    }
+	    if(excel.getSheets()==null||excel.getSheets().size()<1){
+	        throw new ExcelException(ExcelException.ExcelExceptionEnum.SHEET_EMPTY);
+	    }
+	    if(excel.getVersion().equalsIgnoreCase(ExcelBean.EXCEL_VERSION_2007)){
+	        if(!(excel.getFileName().endsWith(".xlsx")||excel.getFileName().endsWith(".XLSX"))){
+	            excel.setFileName(excel.getFileName()+".xlsx");
+	        }
+	        return creatWorkbook2007(excel);
+	    }else{
+	        if(!(excel.getFileName().endsWith(".xls")||excel.getFileName().endsWith(".XLS"))){
+                excel.setFileName(excel.getFileName()+".xls");
+            }
+	        //TODO
+	        //creatWorkbook2003();
+	    }
 	    return wb;
 	}
 	
+	private Workbook creatWorkbook2007(ExcelBean<T> excel) {
+	    SXSSFWorkbook wb = null;
+	    
+	    List<SheetBean<T>> sheets = excel.getSheets();
+	    for (int i = 0; i < sheets.size(); i++) {
+	        SheetBean<T> sheetBean = sheets.get(i);
+	        if(sheetBean==null){
+	            continue;
+	        }
+	        if(StringUtil.isEmpty(sheetBean.getSheetName())){
+	            sheetBean.setSheetName("Sheet"+(i+1));
+	        }
+	        wb = new SXSSFWorkbook(500);  //每500行缓存到内存
+	        SXSSFSheet sheet = wb.createSheet(sheetBean.getSheetName());
+	        
+	        if(sheetBean.getHeader()==null||sheetBean.getHeader().isEmpty()){
+	            addSheetData2007(wb,sheet,sheetBean.getData(),sheetBean.getHeader(),false);
+	            return wb;
+	        }else if(sheetBean.getData()==null||sheetBean.getData().size()<1){
+	            addSheetHeader2007(wb,sheet,sheetBean.getHeader());
+	        }else{
+	            addSheetHeader2007(wb,sheet,sheetBean.getHeader());
+	            addSheetData2007(wb,sheet,sheetBean.getData(),sheetBean.getHeader(),true);
+	        }
+        }
+	    return wb;
+	}  
+	    
 	/**
+	 *     
+	 * 添加excel头
+	 * <功能详细描述>
+	 * @param wb 
+	 * @param sheet
+	 * @param headers
+	 * @see [类、类#方法、类#成员]
+	 */
+	private void addSheetHeader2007(SXSSFWorkbook wb, SXSSFSheet sheet, List<HeaderBean> headers) {
+	    XSSFCellStyle greenStyle = null;
+	    SXSSFRow row = sheet.createRow(0);
+	    
+	    for (int i = 0; i < headers.size(); i++) {
+	        Cell cell = null;
+	        HeaderBean header = headers.get(i);
+	        if(header == null || header.getField()==null){
+	            continue; 
+	        }
+	        cell = row.createCell(i);
+	        
+	        if(StringUtil.isEmpty(header.getName())){
+	            cell.setCellValue(header.getField());
+	            cell.setCellValue(header.getName());
+	            if(greenStyle==null){
+                    greenStyle = (XSSFCellStyle)createGreenStyle(wb);
+                }
+	            cell.setCellStyle(greenStyle);
+	            cell.setCellType(Cell.CELL_TYPE_STRING);
+	            sheet.setColumnWidth(i, 4000);
+	        }
+	        //增加数据校验
+	        if(header.getRowEnum()==null||header.getRowEnum().isEmpty()){
+	            continue;
+	        }else if(header.getRowEnum().size()<ExcelBean.EXCEL_MAX_ROWENUM){
+	          //下拉列表
+	          DataValidation data_validation_list = ExcelUtils.setDataValidationList(sheet,convertMap2Strs(header.getRowEnum()), 1,ExcelBean.EXCEL_MAX_CLOUMN_2007,i,i);
+              //设置提示内容,标题,内容  
+              data_validation_list.createPromptBox("提示", "请选择");  
+              data_validation_list.createErrorBox("错误", "请输入有效值");
+              data_validation_list.setEmptyCellAllowed(false);
+              data_validation_list.setShowErrorBox(true);
+              data_validation_list.setShowPromptBox(true);
+              //工作表添加验证数据  
+              sheet.addValidationData(data_validation_list);
+	        }else{
+	              //下拉列表过长时,单独增加sheet枚举
+                  SXSSFSheet sheet2 = wb.createSheet(header.getName()==null?header.getField():header.getName());
+                  //设置头
+                  SXSSFRow row2 = sheet2.createRow(0);
+                  Cell cell1  = row2.createCell(0);
+                  cell1.setCellValue("代码");
+                  cell1.setCellStyle(greenStyle);
+                  Cell cell2  = row2.createCell(1);
+                  cell2.setCellValue("名称");
+                  cell2.setCellStyle(greenStyle);
+                  String[] nameList= convertMap2Strs(header.getRowEnum());
+                  for (int j = 0; j < nameList.length; j++)
+                  {
+                      SXSSFRow rowJ = sheet2.createRow(j+1);
+                      Cell cellA  = rowJ.createCell(0);
+                      if(nameList[j].split("-").length!=2){
+                          continue;
+                      }
+                      cellA.setCellValue(nameList[j].split("-")[0]);
+                      Cell cellB  = rowJ.createCell(1);
+                      cellB.setCellValue(nameList[j].split("-")[1]);
+                  }
+	        }
+	        
+	        
+        }
+    }
+
+    private void addSheetData2007(SXSSFWorkbook wb, SXSSFSheet sheet, List<T> list, List<HeaderBean> header,
+        boolean hasHeader) {
+        CellStyle style = null;
+        if (hasHeader) {
+            for (int j = 0; j < list.size(); j++) {
+                if (list.get(j) == null)
+                    continue;
+                Map<String, Object> map = ExcelUtils.transBean2Map(list.get(j));
+                SXSSFRow row = sheet.createRow(j + 1);
+                for (int i = 0; i < header.size(); i++) {
+                    Cell cell = null;
+                    HeaderBean headerBean = header.get(i);
+                    if (headerBean == null) {
+                        continue;
+                    }
+                    if (map.containsKey(headerBean.getField())) {
+                        if (headerBean.getType() == Cell.CELL_TYPE_NUMERIC) {
+                            cell = row.createCell(i, Cell.CELL_TYPE_NUMERIC);
+                        }
+                        else {
+                            cell = row.createCell(i, Cell.CELL_TYPE_STRING);
+                        }
+                        if (style == null) {
+                            style = sheet.getWorkbook().createCellStyle();
+                            style.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+                        }
+                        cell.setCellValue(Double.valueOf(headerBean.getField()));
+                        cell.setCellStyle(style);
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
      * 
      * 构建模版/导出数据
      * <功能详细描述>
@@ -694,6 +853,7 @@ public class ExcelUtils<T>{
 	  * 设置excel数据有效性
 	  * <功能详细描述>
 	  * @param sheet
+	  * @param textlist
 	  * @param firstRow 起始行
 	  * @param firstCol 终止行
 	  * @param endRow   起始列
@@ -720,7 +880,7 @@ public class ExcelUtils<T>{
 	          
 	     return data_validation;  
 	} 
-	
+	 
 	/**
 	 *  
 	 * map转对象
@@ -806,5 +966,17 @@ public class ExcelUtils<T>{
 		list.addAll(Arrays.asList(strs));
 	    return list;
 	}
+	
+	private String[] convertMap2Strs(Map<String, String> map){
+	    if(map==null){
+	        return new String[]{};
+	    }
+	    Set<String> set = map.keySet();
+        List<String> list = new ArrayList<>();
+        for (String key : set) {
+            list.add(map.get(key));
+        }
+        return list.toArray(new String[]{});
+    }
 
 }

@@ -1,7 +1,6 @@
 package com.SCode.excel.bean;
 
 import java.util.List;
-import java.util.Map;
 
 public class SheetBean <T> {
     /**
@@ -15,7 +14,7 @@ public class SheetBean <T> {
     /**
      * 工作表头
      */
-    private List<Map<String, String>> header;
+    private List<HeaderBean> header;
     
     public String getSheetName() {
         return sheetName;
@@ -25,7 +24,7 @@ public class SheetBean <T> {
         return data;
     }
     
-    public List<Map<String, String>> getHeader() {
+    public List<HeaderBean> getHeader() {
         return header;
     }
     
@@ -37,8 +36,8 @@ public class SheetBean <T> {
         this.data = data;
     }
     
-    public void setHeader(List<Map<String, String>> header) {
+    public void setHeader(List<HeaderBean> header) {
         this.header = header;
     }
-    
+
 }
