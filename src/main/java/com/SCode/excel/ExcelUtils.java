@@ -6,11 +6,14 @@ import java.beans.PropertyDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,7 @@ import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.util.CollectionUtils;
 
 import com.SCode.excel.bean.ExcelBean;
 import com.SCode.excel.bean.HeaderBean;
@@ -58,23 +62,174 @@ import com.SCode.excel.util.StringUtil;
  * @version  [1.0, 2016年5月10日]
  * @since  [ERP/模块版本]
  */
-public class ExcelUtils<T>{
+public class ExcelUtils{
 	
-	public final static String success ="Excel导出成功";
+	public final static String SUCCESS ="Excel导出成功";
 	
-	public final static String Excel2003 = "2003";
+	public final static String EXCEL2003 = "2003";
 	
-	public final static String Excel2007 = "2007";
+	public final static String EXCEL2007 = "2007";
+	
+	public final static String DEFAULT_SHEET_NAME = "SHEET";
 	
 	
+	/**
+	 * 
+	 * 导出全部属性
+	 * @param data 数据
+	 * @return
+	 * @throws ExcelException
+	 * @see [类、类#方法、类#成员]
+	 */
+	public  static <T> Workbook creatWorkbook(List<T> data){
+	    if(data==null){
+	        return null;
+	    }
+	    return creatWorkbook(data, null, null, null, null);
+	}
+	/**
+	 * 
+	 * 导出全部属性或者按注解导出
+	 * 在T的成员表里上增加@ExportAnnotation(name="名称",type=0,sort=1)
+	 * <功能详细描述>
+	 * @param data 数据
+	 * @param userAnnotation 是否使用注解导出
+	 * @return
+	 * @see [类、类#方法、类#成员]
+	 */
+	public  static <T> Workbook creatWorkbook(List<T> data,boolean userAnnotation){
+       if(userAnnotation){
+           return  creatWorkbook(data, null, null);
+       }else{
+           return creatWorkbook(data);
+       }
+    }
+	/**
+	 * 根据数据类上的注解获取默认表头
+	 * <一句话功能简述>
+	 * <功能详细描述>
+	 * @param data
+	 * @param sheetName
+	 * @param version
+	 * @return
+	 * @see [类、类#方法、类#成员]
+	 */
+	public static <T> Workbook creatWorkbook(List<T> data, String sheetName,String version) {
+        if(data.size()<1){
+            return null;
+        }
+        return creatWorkbook(data, sheetName, version, getDefaultHeader(data.get(0)));
+    }
 	
-	public  Workbook creatWorkbook(ExcelBean<T> excel) throws ExcelException{
+	/**
+     * 
+     * 根据置顶表头导出
+     * <功能详细描述>
+     * @param data 数据
+     * @param sheetName 工作表名称
+     * @param version excel版本
+     * @param headerName 表头名称
+     * @param headerField 表头
+     * @return Workbook
+     * @see [类、类#方法、类#成员]
+     */
+    public  static <T> Workbook creatWorkbook(List<T> data,String sheetName,String version,String[] headerName,String[] headerField){
+            if(headerField==null)return null;
+            List<HeaderBean> headers = new ArrayList<>();
+            for (int i = 0; i < headerField.length; i++) {
+                HeaderBean herderBean = new HeaderBean();
+                if(StringUtil.isEmpty(headerField[i])){
+                    continue;
+                }
+                herderBean.setField( headerField[i]);
+                if(headerName.length>=i+1&&StringUtil.isNotEmpty(headerName[i])){
+                    herderBean.setName(headerName[i]);
+                }else{
+                    herderBean.setName(headerField[i]);
+                }
+                headers.add(herderBean);
+            }
+            return creatWorkbook(data, sheetName, version, headers);
+    }
+	
+
+	private static <T> Workbook creatWorkbook(List<T> data, String sheetName,String version,List<HeaderBean> header) {
+	    Workbook wb = null;
+        ExcelBean<T> excel = new ExcelBean<>();
+        
+        if(StringUtil.isNotEmpty(version)){
+            if(EXCEL2003.equalsIgnoreCase(version)){
+                excel.setVersion(EXCEL2003);
+            }else{
+                excel.setVersion(EXCEL2007);
+            }
+        }
+        
+        SheetBean<T> sheet = new SheetBean<>();
+        if(StringUtil.isEmpty(sheetName)){
+            sheet.setSheetName(DEFAULT_SHEET_NAME);
+        }
+        if(CollectionUtils.isEmpty(header)){
+            if(CollectionUtils.isEmpty(data)){
+                throw new ExcelException(ExcelException.ExcelExceptionEnum.DATA_EMPTY);
+            }else{
+                sheet.setData(data);
+            }
+        }else{
+            sheet.setHeader(header);
+            sheet.setData(data);
+        }
+        List<SheetBean<T>> sheets = new ArrayList<>();
+        sheets.add(sheet);
+        excel.setSheets(sheets);
+        wb = creatWorkbook(excel);
+        return wb;
+    }
+	/**
+	 * 
+	 * 根据数据类上的注解获取默认表头
+	 * <功能详细描述>
+	 * @param t
+	 * @return
+	 * @see [类、类#方法、类#成员]
+	 */
+    private static <T> List<HeaderBean> getDefaultHeader(T t) {
+        Field[] fields = t.getClass().getFields();
+        List<HeaderBean> headers = new ArrayList<>();
+        for(Field f : fields){  
+            //获取字段中包含fieldMeta的注解  
+            try {
+               ExportAnnotation meta = f.getAnnotation(ExportAnnotation.class);
+               if(meta!=null){
+                   HeaderBean header = new HeaderBean();
+                   header.setField(f.getName());
+                   if(StringUtil.isEmpty(meta.name())){
+                       header.setName(f.getName());
+                   }else{
+                       header.setName(meta.name());
+                   }
+                   header.setType(meta.tpye());
+                   header.setSort(meta.sort());
+                   headers.add(header);
+               }
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            } 
+        }
+        Collections.sort(headers, new Comparator<HeaderBean>() {
+            public int compare(HeaderBean arg0, HeaderBean arg1) {
+                return arg0.getSort()-arg1.getSort();
+            }
+        });
+        return headers;
+    }
+
+	
+	private  static <T> Workbook creatWorkbook(ExcelBean<T> excel) throws ExcelException{
 	    Workbook wb = null;
 	    if(excel==null){
 	        throw new ExcelException(ExcelException.ExcelExceptionEnum.PARAMETER_MISSING);
-	    }
-	    if(StringUtil.isEmpty(excel.getFileName())){
-	        excel.setFileName("newFile");
 	    }
 	    if(StringUtil.isEmpty(excel.getVersion())){
 	        excel.setVersion(ExcelBean.EXCEL_VERSION_2007);
@@ -83,9 +238,9 @@ public class ExcelUtils<T>{
 	        throw new ExcelException(ExcelException.ExcelExceptionEnum.SHEET_EMPTY);
 	    }
 	    if(excel.getVersion().equalsIgnoreCase(ExcelBean.EXCEL_VERSION_2007)){
-	        if(!(excel.getFileName().endsWith(".xlsx")||excel.getFileName().endsWith(".XLSX"))){
-	            excel.setFileName(excel.getFileName()+".xlsx");
-	        }
+//	        if(!(excel.getFileName().endsWith(".xlsx")||excel.getFileName().endsWith(".XLSX"))){
+//	            excel.setFileName(excel.getFileName()+".xlsx");
+//	        }
 	        return creatWorkbook2007(excel);
 	    }else{
 	        if(!(excel.getFileName().endsWith(".xls")||excel.getFileName().endsWith(".XLS"))){
@@ -97,35 +252,60 @@ public class ExcelUtils<T>{
 	    return wb;
 	}
 	
-	private Workbook creatWorkbook2007(ExcelBean<T> excel) {
+	private static <T> Workbook creatWorkbook2007(ExcelBean<T> excel) {
 	    SXSSFWorkbook wb = null;
 	    
 	    List<SheetBean<T>> sheets = excel.getSheets();
 	    for (int i = 0; i < sheets.size(); i++) {
 	        SheetBean<T> sheetBean = sheets.get(i);
-	        if(sheetBean==null){
-	            continue;
-	        }
+            if(sheetBean==null||(CollectionUtils.isEmpty(sheetBean.getData())
+                    &&CollectionUtils.isEmpty(sheetBean.getHeader()))){
+                continue;
+            }
 	        if(StringUtil.isEmpty(sheetBean.getSheetName())){
 	            sheetBean.setSheetName("Sheet"+(i+1));
 	        }
 	        wb = new SXSSFWorkbook(500);  //每500行缓存到内存
 	        SXSSFSheet sheet = wb.createSheet(sheetBean.getSheetName());
 	        
-	        if(sheetBean.getHeader()==null||sheetBean.getHeader().isEmpty()){
-	            addSheetData2007(wb,sheet,sheetBean.getData(),sheetBean.getHeader(),false);
-	            return wb;
-	        }else if(sheetBean.getData()==null||sheetBean.getData().size()<1){
-	            addSheetHeader2007(wb,sheet,sheetBean.getHeader());
-	        }else{
-	            addSheetHeader2007(wb,sheet,sheetBean.getHeader());
-	            addSheetData2007(wb,sheet,sheetBean.getData(),sheetBean.getHeader(),true);
+	        if(sheetBean.getHeader()==null||sheetBean.getHeader().size()==0){
+	            sheetBean.setHeader(getDefaultHeader(sheetBean));
 	        }
+	        addSheetHeader2007(wb,sheet,sheetBean.getHeader());
+	        addSheetData2007(wb,sheet,sheetBean.getData(),sheetBean.getHeader());
+	        
         }
 	    return wb;
 	}  
 	    
-	/**
+    private static <T> List<HeaderBean> getDefaultHeader(SheetBean<T> sheetBean) {
+        if (sheetBean == null
+            || (CollectionUtils.isEmpty(sheetBean.getData()) && CollectionUtils.isEmpty(sheetBean.getHeader()))) {
+            return null;
+        }
+        List<HeaderBean> headers = new ArrayList<>();
+        try {  
+            
+            BeanInfo beanInfo = Introspector.getBeanInfo(sheetBean.getData().get(0).getClass()); 
+            PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();  
+            for (PropertyDescriptor property : propertyDescriptors) {  
+                String key = property.getName();  
+                
+                // 过滤class属性  
+                if (!key.equals("class")) {  
+                    HeaderBean sheet = new HeaderBean();
+                    sheet.setField(key);
+                    headers.add(sheet);
+                }  
+            }  
+        } catch (Exception e) {  
+            System.out.println("getDefaultHeader Error " + e);  
+            e.printStackTrace();
+        }  
+        return headers;
+    }
+
+    /**
 	 *     
 	 * 添加excel头
 	 * <功能详细描述>
@@ -134,28 +314,29 @@ public class ExcelUtils<T>{
 	 * @param headers
 	 * @see [类、类#方法、类#成员]
 	 */
-	private void addSheetHeader2007(SXSSFWorkbook wb, SXSSFSheet sheet, List<HeaderBean> headers) {
-	    XSSFCellStyle greenStyle = null;
-	    SXSSFRow row = sheet.createRow(0);
-	    
-	    for (int i = 0; i < headers.size(); i++) {
-	        Cell cell = null;
-	        HeaderBean header = headers.get(i);
-	        if(header == null || header.getField()==null){
-	            continue; 
-	        }
-	        cell = row.createCell(i);
-	        
-	        if(StringUtil.isEmpty(header.getName())){
-	            cell.setCellValue(header.getField());
-	            cell.setCellValue(header.getName());
-	            if(greenStyle==null){
-                    greenStyle = (XSSFCellStyle)createGreenStyle(wb);
-                }
-	            cell.setCellStyle(greenStyle);
-	            cell.setCellType(Cell.CELL_TYPE_STRING);
-	            sheet.setColumnWidth(i, 4000);
-	        }
+	private static void addSheetHeader2007(SXSSFWorkbook wb, SXSSFSheet sheet, List<HeaderBean> headers) {
+        XSSFCellStyle greenStyle = null;
+        SXSSFRow row = sheet.createRow(0);
+        
+        for (int i = 0; i < headers.size(); i++) {
+            
+            HeaderBean header = headers.get(i);
+            if (header == null || header.getField() == null) {
+                continue;
+            }
+            Cell cell = row.createCell(i);
+            
+            if (StringUtil.isEmpty(header.getName())) {
+                cell.setCellValue(header.getField());
+            } else {
+                cell.setCellValue(header.getName());
+            }
+            if (greenStyle == null) {
+                greenStyle = (XSSFCellStyle)createGreenStyle(wb);
+            }
+            cell.setCellStyle(greenStyle);
+            cell.setCellType(Cell.CELL_TYPE_STRING);
+            sheet.setColumnWidth(i, 4000);
 	        //增加数据校验
 	        if(header.getRowEnum()==null||header.getRowEnum().isEmpty()){
 	            continue;
@@ -198,36 +379,55 @@ public class ExcelUtils<T>{
 	        
         }
     }
-
-    private void addSheetData2007(SXSSFWorkbook wb, SXSSFSheet sheet, List<T> list, List<HeaderBean> header,
-        boolean hasHeader) {
+	/**
+	 * 
+	 * 添加EXCEl内容
+	 * @param wb
+	 * @param sheet
+	 * @param list
+	 * @param header
+	 * @see [类、类#方法、类#成员]
+	 */
+    private static <T> void addSheetData2007(SXSSFWorkbook wb, SXSSFSheet sheet, List<T> list, List<HeaderBean> header) {
         CellStyle style = null;
-        if (hasHeader) {
-            for (int j = 0; j < list.size(); j++) {
-                if (list.get(j) == null)
+        
+        for (int j = 0; j < list.size(); j++) {
+            if (list.get(j) == null)
+                continue;
+            Map<String, Object> map = ExcelUtils.transBean2Map(list.get(j));
+            if (map.isEmpty())
+                return;
+            SXSSFRow row = sheet.createRow(j + 1);
+            for (int i = 0; i < header.size(); i++) {
+                Cell cell = null;
+                HeaderBean headerBean = header.get(i);
+                if (headerBean == null) {
                     continue;
-                Map<String, Object> map = ExcelUtils.transBean2Map(list.get(j));
-                SXSSFRow row = sheet.createRow(j + 1);
-                for (int i = 0; i < header.size(); i++) {
-                    Cell cell = null;
-                    HeaderBean headerBean = header.get(i);
-                    if (headerBean == null) {
-                        continue;
+                }
+                if (map.containsKey(headerBean.getField())) {
+                    if (headerBean.getType() == Cell.CELL_TYPE_NUMERIC) {
+                        cell = row.createCell(i, Cell.CELL_TYPE_NUMERIC);
+                        if(map.get(headerBean.getField())==null){
+                            cell.setCellValue(0);
+                        }else{
+                            String val = map.get(headerBean.getField()).toString();
+                            cell.setCellValue(Double.valueOf(val));
+                        }
                     }
-                    if (map.containsKey(headerBean.getField())) {
-                        if (headerBean.getType() == Cell.CELL_TYPE_NUMERIC) {
-                            cell = row.createCell(i, Cell.CELL_TYPE_NUMERIC);
+                    else {
+                        cell = row.createCell(i, Cell.CELL_TYPE_STRING);
+                        if(map.get(headerBean.getField())==null){
+                            cell.setCellValue("");
+                        }else{
+                            String val = map.get(headerBean.getField()).toString();
+                            cell.setCellValue(val);
                         }
-                        else {
-                            cell = row.createCell(i, Cell.CELL_TYPE_STRING);
-                        }
-                        if (style == null) {
-                            style = sheet.getWorkbook().createCellStyle();
-                            style.setAlignment(XSSFCellStyle.ALIGN_CENTER);
-                        }
-                        cell.setCellValue(Double.valueOf(headerBean.getField()));
-                        cell.setCellStyle(style);
                     }
+                    if (style == null) {
+                        style = sheet.getWorkbook().createCellStyle();
+                        style.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+                    }
+                    cell.setCellStyle(style);
                 }
             }
         }
@@ -238,6 +438,7 @@ public class ExcelUtils<T>{
      * 
      * 构建模版/导出数据
      * <功能详细描述>
+     * @deprecated
      * @param list  初始数据
      * @param response httpresponse
      * @param tableName 表头名称
@@ -249,13 +450,13 @@ public class ExcelUtils<T>{
      * @return
      * @see [类、类#方法、类#成员]
      */
-    public Boolean buildModel(List<T> list,HttpServletResponse response,String[] tableName,String[] tableFild,Map<String,String[]> headerCheckList,String fileName,String excelVersion){
+    public static <T> Boolean buildModel(List<T> list,HttpServletResponse response,String[] tableName,String[] tableFild,Map<String,String[]> headerCheckList,String fileName,String excelVersion){
         try {
             //HSSFWorkbook wb = service.getTudimiaoJingyingHssfWorkbook(rp);
            
             //HSSFWorkbook wb = BaseExcelUtil.writeXlsData2003(dataList, header);
             Workbook wb=null;
-            if(Excel2007.equals(excelVersion)){
+            if(EXCEL2007.equals(excelVersion)){
                 fileName+=".xlsx";
                 wb = writeXlsxData2007(list, tableName,tableFild,headerCheckList,fileName);
              }else{
@@ -289,6 +490,7 @@ public class ExcelUtils<T>{
      * 
      * 读取文件中数据
      * <功能详细描述>
+     * @deprecated
      * @param is 输入流
      * @param cls  bean类型
      * @param field  对应字段
@@ -299,7 +501,7 @@ public class ExcelUtils<T>{
      * @see [类、类#方法、类#成员]
      */
     @SuppressWarnings("resource")
-   public  List<T>  readGoodsItemFromXls(InputStream is,Class<T> cls,String[] field) throws IOException, InstantiationException, IllegalAccessException {
+   public  static <T> List<T>  readGoodsItemFromXls(InputStream is,Class<T> cls,String[] field) throws IOException, InstantiationException, IllegalAccessException {
            
            XSSFWorkbook hssfWorkbook = new XSSFWorkbook(is);
            List<T> list = new ArrayList<T>();
@@ -356,7 +558,7 @@ public class ExcelUtils<T>{
      * @see [类、类#方法、类#成员]
      */
     @SuppressWarnings("unused")
-    private  HSSFWorkbook writeXlsData2003(List<T> dataList,String[] tableName,String[] tableFeild){
+    private static  <T> HSSFWorkbook writeXlsData2003(List<T> dataList,String[] tableName,String[] tableFeild){
         
         
         List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
@@ -442,7 +644,7 @@ public class ExcelUtils<T>{
      * @see [类、类#方法、类#成员]
      */
     @SuppressWarnings("unused")
-    private  SXSSFWorkbook writeXlsxData2007(List<T> dataList,String[] tableName,String[] tableFeild,Map<String,String[]> headerCheckList,String fileName){
+    private  static <T> SXSSFWorkbook writeXlsxData2007(List<T> dataList,String[] tableName,String[] tableFeild,Map<String,String[]> headerCheckList,String fileName){
         
         List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
         if(tableName==null){
@@ -588,7 +790,7 @@ public class ExcelUtils<T>{
 	 * @see [类、类#方法、类#成员]
 	 */
 	@SuppressWarnings("unused")
-    private Map<String, Object> writeXlsxData(List<Map<String, Object>> list,String filePath,FileOutputStream out,Map<String, Object> result,ArrayList<String> header){
+    private static Map<String, Object> writeXlsxData(List<Map<String, Object>> list,String filePath,FileOutputStream out,Map<String, Object> result,ArrayList<String> header){
 		XSSFWorkbook wb = new XSSFWorkbook();
         XSSFSheet sheet = wb.createSheet();
         
@@ -652,7 +854,7 @@ public class ExcelUtils<T>{
 	 * @see [类、类#方法、类#成员]
 	 */
 	@SuppressWarnings("unused")
-    private Map<String, Object> writeXlsData(List<Map<String, Object>> list,String filePath,FileOutputStream out,Map<String, Object> result,ArrayList<String> header){
+    private static Map<String, Object> writeXlsData(List<Map<String, Object>> list,String filePath,FileOutputStream out,Map<String, Object> result,ArrayList<String> header){
 		HSSFWorkbook wb = new HSSFWorkbook();
         HSSFSheet sheet = wb.createSheet();
         
@@ -958,7 +1160,7 @@ public class ExcelUtils<T>{
 	 * @see [类、类#方法、类#成员]
 	 */
 	@SuppressWarnings("unused")
-    private ArrayList<String> convertStrs2ArrayList(String[] strs){
+    private static ArrayList<String> convertStrs2ArrayList(String[] strs){
 		if(strs==null){
 			return null;
 		}
@@ -967,7 +1169,7 @@ public class ExcelUtils<T>{
 	    return list;
 	}
 	
-	private String[] convertMap2Strs(Map<String, String> map){
+	private static String[] convertMap2Strs(Map<String, String> map){
 	    if(map==null){
 	        return new String[]{};
 	    }

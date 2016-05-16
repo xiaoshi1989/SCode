@@ -2,6 +2,8 @@ package com.SCode.excel.bean;
 
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.Cell;
+
 public class HeaderBean {
     /**
      * 属性
@@ -18,8 +20,21 @@ public class HeaderBean {
     /**
      * excel 列数据类型   
      */
-    private int type;
+    private int type = Cell.CELL_TYPE_STRING;
     
+    private int sort;
+    
+    
+    
+    public int getSort() {
+        return sort;
+    }
+
+    
+    public void setSort(int sort) {
+        this.sort = sort;
+    }
+
     public String getField() {
         return field;
     }

@@ -1,12 +1,16 @@
 package SCode.Scode;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.poi.ss.usermodel.Workbook;
+
 import com.SCode.excel.ExcelUtils;
-import com.SCode.excel.bean.ExcelBean;
-import com.SCode.excel.bean.SheetBean;
-import com.SCode.excel.exception.ExcelException;
+import com.SCode.excel.ExportAnnotation;
 
 /**
  * Unit test for simple App.
@@ -15,44 +19,38 @@ public class AppTest
 {
     
     
-    public void testExcel(){
-        ExcelUtils<User> util = new ExcelUtils<>();
-        
-        ExcelBean<User> bean = new ExcelBean<>();
-        bean.setFilePath("D:\\data");
-        List<SheetBean<User>> sheets = new ArrayList<>();
-        SheetBean<User> sheet = new SheetBean<>();
-//        sheet.s
-//        bean.setSheets(sheets);
+    public void testExcel() throws IOException{
+       User u = new User("shi","12");
+       List<User> data = new ArrayList<>();
+       data.add(u);
+//       Workbook wb = ExcelUtils.creatWorkbook(data);
+       Workbook wb = ExcelUtils.creatWorkbook(data, "测试", "2007");
+       File file = new File("D:\\data\\test.xlsx");
+       FileOutputStream fileOutputStream = new FileOutputStream(file);
+       wb.write(fileOutputStream);
+       fileOutputStream.flush();
+       fileOutputStream.close();
+    }
+    
+    public static void main(String[] args) {
         try {
-            util.creatWorkbook(bean);
+            new AppTest().testExcel();
+
         }
-        catch (ExcelException e) {
+        catch (Exception e) {
+            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
-    
-    
 
 }
-class User {
-    private String name;
-    private String age;
-    
-    public String getName() {
-        return name;
-    }
-    
-    public String getAge() {
-        return age;
-    }
-    
-    public void setName(String name) {
-        this.name = name;
-    }
-    
-    public void setAge(String age) {
-        this.age = age;
-    }
-    
-}
+
+
+
+
+
+
+
+
+
+
