@@ -3,16 +3,16 @@ package com.SCode.excel.bean;
 import java.util.List;
 /**
  * 
- * excel bean
+ * EXCEL类
  * @author  shizj
- * @version  [1.0, 2016年5月10日]
- * @since  [ERP/模块版本]
+ * @version  [1.0, 2016年5月17日]
  */
 public class ExcelBean <T> {
 
     public static final String EXCEL_VERSION_2003 = "2003";
     
     public static final String EXCEL_VERSION_2007 = "2007";
+    
     /**
      * excel 最大行数
      */

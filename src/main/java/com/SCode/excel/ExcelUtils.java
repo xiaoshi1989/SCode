@@ -55,12 +55,9 @@ import com.SCode.excel.exception.ExcelException;
 import com.SCode.excel.util.StringUtil;
 /**
  * 
- * excel 相关操作
- * @since POI 3.13
- * 
+ * Excel操作工具类
  * @author  shizj
- * @version  [1.0, 2016年5月10日]
- * @since  [ERP/模块版本]
+ * @version  [1.0, 2016年5月17日]
  */
 public class ExcelUtils{
 	
@@ -152,8 +149,16 @@ public class ExcelUtils{
             return creatWorkbook(data, sheetName, version, headers);
     }
 	
-
-	private static <T> Workbook creatWorkbook(List<T> data, String sheetName,String version,List<HeaderBean> header) {
+    /**
+     * 
+     * <一句话功能简述>
+     * @param data
+     * @param sheetName
+     * @param version
+     * @param header
+     * @return
+     */
+	public static <T> Workbook creatWorkbook(List<T> data, String sheetName,String version,List<HeaderBean> header) {
 	    Workbook wb = null;
         ExcelBean<T> excel = new ExcelBean<>();
         
@@ -224,6 +229,41 @@ public class ExcelUtils{
         });
         return headers;
     }
+    /**
+     * 
+     * 根据数据获取默认表头
+     * <功能详细描述>
+     * @param sheetBean
+     * @return
+     * @see [类、类#方法、类#成员]
+     */
+    private static <T> List<HeaderBean> getDefaultHeader(SheetBean<T> sheetBean) {
+        if (sheetBean == null
+            || (CollectionUtils.isEmpty(sheetBean.getData()) && CollectionUtils.isEmpty(sheetBean.getHeader()))) {
+            return null;
+        }
+        List<HeaderBean> headers = new ArrayList<>();
+        try {  
+            
+            BeanInfo beanInfo = Introspector.getBeanInfo(sheetBean.getData().get(0).getClass()); 
+            PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();  
+            for (PropertyDescriptor property : propertyDescriptors) {  
+                String key = property.getName();  
+                
+                // 过滤class属性  
+                if (!key.equals("class")) {  
+                    HeaderBean sheet = new HeaderBean();
+                    sheet.setField(key);
+                    headers.add(sheet);
+                }  
+            }  
+        } catch (Exception e) {  
+            System.out.println("getDefaultHeader Error " + e);  
+            e.printStackTrace();
+        }  
+        return headers;
+    }
+
 
 	
 	private  static <T> Workbook creatWorkbook(ExcelBean<T> excel) throws ExcelException{
@@ -278,33 +318,6 @@ public class ExcelUtils{
 	    return wb;
 	}  
 	    
-    private static <T> List<HeaderBean> getDefaultHeader(SheetBean<T> sheetBean) {
-        if (sheetBean == null
-            || (CollectionUtils.isEmpty(sheetBean.getData()) && CollectionUtils.isEmpty(sheetBean.getHeader()))) {
-            return null;
-        }
-        List<HeaderBean> headers = new ArrayList<>();
-        try {  
-            
-            BeanInfo beanInfo = Introspector.getBeanInfo(sheetBean.getData().get(0).getClass()); 
-            PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();  
-            for (PropertyDescriptor property : propertyDescriptors) {  
-                String key = property.getName();  
-                
-                // 过滤class属性  
-                if (!key.equals("class")) {  
-                    HeaderBean sheet = new HeaderBean();
-                    sheet.setField(key);
-                    headers.add(sheet);
-                }  
-            }  
-        } catch (Exception e) {  
-            System.out.println("getDefaultHeader Error " + e);  
-            e.printStackTrace();
-        }  
-        return headers;
-    }
-
     /**
 	 *     
 	 * 添加excel头
@@ -909,44 +922,7 @@ public class ExcelUtils{
 	
 	
 	
-	/**
-	 * 
-	 * 对象转换称map
-	 * @param obj
-	 * @return
-	 * @see [类、类#方法、类#成员]
-	 */
-    private static Map<String, Object> transBean2Map(Object obj) {  
-    	  
-        if(obj == null){  
-            return null;  
-        }          
-        Map<String, Object> map = new HashMap<String, Object>();  
-        try {  
-            BeanInfo beanInfo = Introspector.getBeanInfo(obj.getClass());  
-            PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();  
-            for (PropertyDescriptor property : propertyDescriptors) {  
-                String key = property.getName();  
-  
-                // 过滤class属性  
-                if (!key.equals("class")) {  
-                    // 得到property对应的getter方法  
-                    Method getter = property.getReadMethod();  
-                    Object value = getter.invoke(obj);  
-                    if(value==null){
-                    	continue;
-                    }
-                    map.put(key, value);  
-                }  
-  
-            }  
-        } catch (Exception e) {  
-            System.out.println("transBean2Map Error " + e);  
-        }  
-  
-        return map;  
-  
-    }
+	
     /**
      * 
      * 设置样式
@@ -1151,7 +1127,44 @@ public class ExcelUtils{
 	        return;  
 	  
 	    }
-	
+    /**
+     * 
+     * 对象转换称map
+     * @param obj
+     * @return
+     * @see [类、类#方法、类#成员]
+     */
+    private static Map<String, Object> transBean2Map(Object obj) {  
+          
+        if(obj == null){  
+            return null;  
+        }          
+        Map<String, Object> map = new HashMap<String, Object>();  
+        try {  
+            BeanInfo beanInfo = Introspector.getBeanInfo(obj.getClass());  
+            PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();  
+            for (PropertyDescriptor property : propertyDescriptors) {  
+                String key = property.getName();  
+  
+                // 过滤class属性  
+                if (!key.equals("class")) {  
+                    // 得到property对应的getter方法  
+                    Method getter = property.getReadMethod();  
+                    Object value = getter.invoke(obj);  
+                    if(value==null){
+                        continue;
+                    }
+                    map.put(key, value);  
+                }  
+  
+            }  
+        } catch (Exception e) {  
+            System.out.println("transBean2Map Error " + e);  
+        }  
+  
+        return map;  
+  
+    }
 	/**
 	 * 
 	 * 数据转ArrayList

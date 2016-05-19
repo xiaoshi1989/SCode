@@ -1,6 +1,11 @@
 package com.SCode.excel.exception;
 
-
+/**
+ * 
+ * EXCEL操作异常
+ * @author  shizj
+ * @version  [1.0, 2016年5月17日]
+ */
 public class ExcelException extends RuntimeException {
     private static final long serialVersionUID = 6145562528625520683L;
 

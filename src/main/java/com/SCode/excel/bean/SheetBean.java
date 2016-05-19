@@ -1,7 +1,12 @@
 package com.SCode.excel.bean;
 
 import java.util.List;
-
+/**
+ * 
+ * 工作表
+ * @author  shizj
+ * @version  [1.0, 2016年5月17日]
+ */
 public class SheetBean <T> {
     /**
      * 工作表名称
