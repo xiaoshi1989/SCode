@@ -1,4 +1,4 @@
-package SCode.Scode;
+package com.SCode.test;
 
 import com.SCode.excel.ExportAnnotation;
 
@@ -9,7 +9,9 @@ public class User {
     public String age;
     
     
-    
+    public User() {
+        super();
+    }
     public User(String name, String age) {
         super();
         this.name = name;

@@ -1,8 +1,11 @@
-package SCode.Scode;
+package com.SCode.test;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,13 +35,19 @@ public class AppTest
        fileOutputStream.close();
     }
     
+    public List<User> testread() throws Exception{
+        
+        InputStream is = new FileInputStream(new File("C:\\Users\\User\\Downloads\\商品副标题上传模版.xlsx"));
+        List<User> list = ExcelUtils.getData(is , User.class, new String[]{"name","age"});
+        return list;
+    }
+    
     public static void main(String[] args) {
         try {
-            new AppTest().testExcel();
+            new AppTest().testread();
 
         }
         catch (Exception e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }

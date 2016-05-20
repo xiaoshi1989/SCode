@@ -190,6 +190,53 @@ public class ExcelUtils{
         wb = creatWorkbook(excel);
         return wb;
     }
+	
+	public  static <T> List<T>  getData(InputStream is,Class<T> cls,String[] field) throws IOException, InstantiationException, IllegalAccessException {
+	    XSSFWorkbook hssfWorkbook = new XSSFWorkbook(is);
+	    
+        List<T> list = new ArrayList<T>();
+        // 循环工作表Sheet
+            XSSFSheet hssfSheet = hssfWorkbook.getSheetAt(0);
+            if (hssfSheet == null) {
+                return null;
+            }
+            // 循环行Row-从数据行开始
+            for (int rowNum = 1; rowNum <= hssfSheet.getLastRowNum(); rowNum++) {
+                T t=cls.newInstance();
+                XSSFRow hssfRow = hssfSheet.getRow(rowNum);
+                HashMap<String, Object> map=new HashMap<String, Object>();
+                //循环row中的每一个单元格
+                for (int i = 0; i < hssfRow.getLastCellNum(); i++) {
+                    XSSFCell cell = hssfRow.getCell(i);
+                    //格式转换
+                    String val="";
+                    if(cell!=null){
+                        if(cell.getCellType()==Cell.CELL_TYPE_STRING){
+                            val=cell.getStringCellValue();
+                        }else if(cell.getCellType()==Cell.CELL_TYPE_BOOLEAN){
+                            val=cell.getBooleanCellValue()==true?"true":"false";
+                        }else if(cell.getCellType()==Cell.CELL_TYPE_NUMERIC){
+                            val=new BigDecimal(cell.getNumericCellValue()).toPlainString();
+                        }else{
+                            cell.setCellType(Cell.CELL_TYPE_STRING);
+                            val=cell.getStringCellValue();
+                        }
+                    }
+                    for(int n=0;n<field.length;n++){
+                        if(i==n&&!field[n].contains("&")){
+                            map.put(field[n], cell==null?"":val);
+                        }else if(i==n){
+                            map.put(field[n].split("&")[0], cell==null?"":val.split("-")[0]);
+                        }
+                    }
+                }
+                transMap2Bean(map,t);
+                list.add(t);
+
+            }
+        return list;
+	}
+	
 	/**
 	 * 
 	 * 根据数据类上的注解获取默认表头
